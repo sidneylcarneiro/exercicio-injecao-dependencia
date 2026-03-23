@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 
 app = FastAPI(title="API sem Injeção de Dependência")
 
@@ -21,18 +21,17 @@ class BancoDeDadosFalso:
             return {"id": 1, "nome": "Sidney"}
         return None
 
-@app.get("/usuarios/{user_id}")
-def obter_usuario(user_id: int):
+def get_db():
     db = BancoDeDadosFalso()
     db.conectar()
-    
     try:
-        usuario = db.buscar_usuario(user_id)
-        if not usuario:
-            raise HTTPException(status_code=404, detail="Usuário não encontrado")
-        
+        yield db
+    finally:
         db.fechar()
-        return usuario
-    except Exception as e:
-        raise e
-    
+        
+@app.get("/usuarios/{user_id}")
+def obter_usuario(user_id: int, db: BancoDeDadosFalso = Depends(get_db)):
+    usuario = db.buscar_usuario(user_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    return usuario
